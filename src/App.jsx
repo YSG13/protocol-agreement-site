@@ -1,7 +1,13 @@
-// src/App.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { db } from "./firebase";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  orderBy,
+} from "firebase/firestore";
 
 export default function App() {
   const [name, setName] = useState("");
@@ -10,98 +16,140 @@ export default function App() {
   const [whatHappened, setWhatHappened] = useState("");
   const [signature, setSignature] = useState("");
   const [reports, setReports] = useState([]);
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
-  const fetchReports = async () => {
-    const snapshot = await getDocs(collection(db, "reports"));
-    const data = snapshot.docs.map(doc => doc.data());
-    setReports(data);
-  };
+  const protocols = [
+    "No yelling",
+    "No raging",
+    "Respect agreements",
+    "Mute during breaks",
+    "Respect screen share",
+    "No controller swapping"
+  ];
 
   useEffect(() => {
-    fetchReports();
+    const q = query(collection(db, "violations"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setReports(snapshot.docs.map((doc) => doc.data()));
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleSubmit = async () => {
     const allowedPins = {
       YSG: "9696",
-      Azuz: "6969"
+      Azuz: "6969",
     };
 
-    if (!name || !protocol || !pin) return alert("Please fill everything");
-    if (pin !== allowedPins[name]) return alert("Wrong pin");
+    if (!name || !protocol || !pin || !signature || !whatHappened) return alert("Fill all fields");
+    if (pin !== allowedPins[name]) return alert("Wrong PIN");
 
-    const newEntry = {
+    await addDoc(collection(db, "violations"), {
       name,
       protocol,
-      whatHappened,
-      date: new Date().toLocaleString(),
       pin,
-      signature
-    };
+      whatHappened,
+      signature,
+      date: new Date().toLocaleString(),
+    });
 
-    await addDoc(collection(db, "reports"), newEntry);
     setName("");
     setProtocol("");
     setPin("");
     setWhatHappened("");
     setSignature("");
-    fetchReports();
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+  };
+
+  const startDraw = ({ nativeEvent }) => {
+    const { offsetX, offsetY } = nativeEvent;
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.beginPath();
+    ctx.moveTo(offsetX, offsetY);
+    setIsDrawing(true);
+  };
+
+  const draw = ({ nativeEvent }) => {
+    if (!isDrawing) return;
+    const { offsetX, offsetY } = nativeEvent;
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.lineTo(offsetX, offsetY);
+    ctx.stroke();
+  };
+
+  const endDraw = () => {
+    setIsDrawing(false);
+    const dataURL = canvasRef.current.toDataURL();
+    setSignature(dataURL);
   };
 
   return (
-    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+    <div style={{ padding: 20, fontFamily: "Arial" }}>
       <h1>🛡️ Protocol Agreement Tracker</h1>
 
-      <label>Violator:</label>
-      <select value={name} onChange={e => setName(e.target.value)}>
-        <option value="">Select</option>
-        <option value="YSG">YSG</option>
-        <option value="Azuz">Azuz</option>
-      </select>
+      <label>
+        Select Violator
+        <select value={name} onChange={(e) => setName(e.target.value)}>
+          <option value="">--</option>
+          <option value="YSG">YSG</option>
+          <option value="Azuz">Azuz</option>
+        </select>
+      </label>
+      <br /><br />
 
-      <br />
-      <label>Protocol Broken:</label>
-      <select value={protocol} onChange={e => setProtocol(e.target.value)}>
-        <option value="">Select</option>
-        <option value="No Screenshot">No Screenshot</option>
-        <option value="No Cursing">No Cursing</option>
-        <option value="No Spamming">No Spamming</option>
-      </select>
+      <label>
+        Select Protocol
+        <select value={protocol} onChange={(e) => setProtocol(e.target.value)}>
+          <option value="">--</option>
+          {protocols.map((p, i) => (
+            <option key={i} value={p}>{p}</option>
+          ))}
+        </select>
+      </label>
+      <br /><br />
 
-      <br />
-      <label>What happened:</label>
       <textarea
+        placeholder="What happened?"
         value={whatHappened}
-        onChange={e => setWhatHappened(e.target.value)}
-        placeholder="Explain the situation"
-      />
+        onChange={(e) => setWhatHappened(e.target.value)}
+      /><br /><br />
 
-      <br />
-      <label>PIN:</label>
       <input
         type="password"
+        placeholder="PIN"
         value={pin}
-        onChange={e => setPin(e.target.value)}
-      />
+        onChange={(e) => setPin(e.target.value)}
+      /><br /><br />
 
+      <div>
+        ✍️ Signature:
+        <br />
+        <canvas
+          ref={canvasRef}
+          width={300}
+          height={100}
+          style={{ border: "1px solid black" }}
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+        />
+      </div>
       <br />
-      <label>✍️ Signature:</label>
-      <input
-        type="text"
-        value={signature}
-        onChange={e => setSignature(e.target.value)}
-      />
 
-      <br />
       <button onClick={handleSubmit}>Submit Report</button>
 
       <hr />
-      <h2>📋 Report Log</h2>
+
+      <h3>📋 Reports</h3>
       {reports.map((r, i) => (
-        <div key={i} style={{ marginBottom: 10 }}>
-          <b>{r.name}</b> broke <i>{r.protocol}</i> — <small>{r.date}</small>
-          <div>Reason: {r.whatHappened}</div>
-          <div>Signed: {r.signature}</div>
+        <div key={i} style={{ marginBottom: 10, padding: 10, border: "1px solid gray" }}>
+          <b>{r.name}</b> broke <b>{r.protocol}</b><br />
+          🕓 {r.date}<br />
+          📄 {r.whatHappened}<br />
+          ✍️ <img src={r.signature} alt="signature" style={{ width: 100 }} />
         </div>
       ))}
     </div>
