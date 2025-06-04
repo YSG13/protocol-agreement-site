@@ -1,11 +1,10 @@
-// App.jsx (complete working code)
+// src/App.jsx (final full version with working Firestore save, signature pad, and PIN check)
 import React, { useState, useRef, useEffect } from "react";
 import { db } from "./firebase";
 import {
   collection,
   addDoc,
   onSnapshot,
-  getDocs,
   orderBy,
   query,
 } from "firebase/firestore";
@@ -26,7 +25,7 @@ export default function App() {
     "Protocol 003 - Tech & Code Protocols",
     "Protocol 004 - The ISEF Pact",
     "Protocol 005 - Console Shaming Act",
-    "Protocol 006 - Final Shaming Page",
+    "Protocol 006 - being an ass ",
   ];
 
   useEffect(() => {
