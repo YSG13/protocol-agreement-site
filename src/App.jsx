@@ -8,8 +8,8 @@ const validUsers = {
 };
 
 const userPins = {
-  Abdulaziz: "1111",
-  Yousif: "2222",
+  Abdulaziz: "6969",
+  Yousif: "9696",
 };
 
 const punishments = {
