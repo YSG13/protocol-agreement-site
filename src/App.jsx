@@ -1,15 +1,32 @@
 import { useState, useEffect, useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { jsPDF } from "jspdf";
+import { initializeApp } from "firebase/app";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  serverTimestamp,
+  query,
+  orderBy
+} from "firebase/firestore";
 
-const validUsers = {
-  Abdulaziz: "zaza12345678910",
-  Yousif: "ysg918273645",
+const firebaseConfig = {
+  apiKey: "AIzaSyCqB5VdFRdi--JmkvL322dHIpyMH1jTzg0",
+  authDomain: "ysgs-a1e40.firebaseapp.com",
+  projectId: "ysgs-a1e40",
+  storageBucket: "ysgs-a1e40.firebasestorage.app",
+  messagingSenderId: "373671553111",
+  appId: "1:373671553111:web:9df9b58434cbcd25981b12"
 };
 
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 const userPins = {
-  Abdulaziz: "6969",
-  Yousif: "9696",
+  Abdulaziz: "1111",
+  Yousif: "2222",
 };
 
 const punishments = {
@@ -22,7 +39,6 @@ const punishments = {
 };
 
 export default function App() {
-  const [loggedInUser, setLoggedInUser] = useState(null);
   const [agreements, setAgreements] = useState([]);
   const [name, setName] = useState("");
   const [protocol, setProtocol] = useState("");
@@ -32,15 +48,15 @@ export default function App() {
   const sigCanvasRef = useRef();
 
   useEffect(() => {
-    const saved = localStorage.getItem("protocolReports");
-    if (saved) setAgreements(JSON.parse(saved));
+    const q = query(collection(db, "reports"), orderBy("timestamp", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const all = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setAgreements(all);
+    });
+    return () => unsub();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("protocolReports", JSON.stringify(agreements));
-  }, [agreements]);
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !protocol || !pin || pin !== userPins[name]) {
       alert("Missing or incorrect PIN");
       return;
@@ -51,21 +67,24 @@ export default function App() {
     }
 
     const signatureURL = sigCanvasRef.current.getTrimmedCanvas().toDataURL("image/png");
-    const newEntry = {
-      name,
-      violation: protocol,
-      details,
-      signatureURL,
-      date: new Date().toLocaleString(),
-    };
 
-    setAgreements([newEntry, ...agreements]);
-    setName("");
-    setProtocol("");
-    setDetails("");
-    setPin("");
-    sigCanvasRef.current.clear();
-    setSigError("");
+    try {
+      await addDoc(collection(db, "reports"), {
+        name,
+        violation: protocol,
+        details,
+        signatureURL,
+        timestamp: serverTimestamp()
+      });
+      setName("");
+      setProtocol("");
+      setDetails("");
+      setPin("");
+      sigCanvasRef.current.clear();
+      setSigError("");
+    } catch (err) {
+      alert("Firebase error: " + err.message);
+    }
   };
 
   const generatePDF = (entry) => {
@@ -75,33 +94,13 @@ export default function App() {
     doc.text(`Name: ${entry.name}`, 20, 40);
     doc.text(`Protocol: ${entry.violation}`, 20, 50);
     if (entry.details) doc.text(`Details: ${entry.details}`, 20, 60);
-    doc.text(`Date: ${entry.date}`, 20, 70);
-    doc.text(`Punishment: ${punishments[entry.violation]}`, 20, 80);
-    doc.addImage(entry.signatureURL, 'PNG', 20, 90, 100, 40);
-    doc.save(`protocol-violation-${entry.name}.pdf`);
+    doc.text(`Punishment: ${punishments[entry.violation]}`, 20, 70);
+    doc.addImage(entry.signatureURL, 'PNG', 20, 80, 100, 40);
+    doc.save(`protocol-${entry.name}.pdf`);
   };
-
-  const LoginPage = ({ onLogin }) => {
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const handleLogin = () => {
-      if (validUsers[username] === password) onLogin(username);
-      else alert("Invalid credentials");
-    };
-    return (
-      <form>
-        <h1>🔐 Protocol Login</h1>
-        <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button type="button" onClick={handleLogin}>Login</button>
-      </form>
-    );
-  };
-
-  if (!loggedInUser) return <LoginPage onLogin={setLoggedInUser} />;
 
   return (
-    <div>
+    <div style={{ padding: 20 }}>
       <h1>🛡️ Protocol Agreement Tracker</h1>
 
       <form>
@@ -122,20 +121,20 @@ export default function App() {
         <input type="password" placeholder="PIN" value={pin} onChange={(e) => setPin(e.target.value)} />
 
         <label>✍️ Signature:</label>
-        <SignatureCanvas ref={sigCanvasRef} penColor="black" canvasProps={{ width: 300, height: 100, className: "sigCanvas" }} />
+        <SignatureCanvas ref={sigCanvasRef} penColor="black" canvasProps={{ width: 300, height: 100 }} />
         {sigError && <p style={{ color: "red" }}>{sigError}</p>}
 
         <button type="button" onClick={handleSubmit}>Submit Report</button>
       </form>
 
+      <hr />
+      <h3>📜 Reported Violations:</h3>
       {agreements.map((entry, idx) => (
-        <div className="report-card" key={idx}>
-          <p><strong>🚨 {entry.name} broke:</strong> {entry.violation}</p>
-          <p><em>{entry.date}</em></p>
-          {entry.details && <p>“{entry.details}”</p>}
-          <p><strong>Punishment:</strong> {punishments[entry.violation]}</p>
-          <img className="signature-img" src={entry.signatureURL} alt="Signature" />
-          <button onClick={() => generatePDF(entry)}>📄 Download PDF</button>
+        <div key={entry.id || idx} style={{ marginBottom: 20, padding: 10, border: "1px solid #ccc", borderRadius: 6 }}>
+          <p><strong>{entry.name}</strong> broke <em>{entry.violation}</em></p>
+          <p>{entry.details}</p>
+          <img src={entry.signatureURL} width={180} alt="Signature" />
+          <button onClick={() => generatePDF(entry)}>📄 PDF</button>
         </div>
       ))}
     </div>
