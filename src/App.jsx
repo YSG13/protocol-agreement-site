@@ -20,12 +20,12 @@ export default function App() {
   const [isDrawing, setIsDrawing] = useState(false);
 
   const protocols = [
-    "No yelling",
-    "No raging",
-    "Respect agreements",
-    "Mute during breaks",
-    "Respect screen share",
-    "No controller swapping"
+    "Protocol 001 — Gaming Laws",
+    "Protocol 002 — Roast Protection Acts",
+    "Protocol 003 — Tech & Code Protocols",
+    "Protocol 004 — The ISEF Pact",
+    "Protocol 005 — Console Shaming Act",
+    "Protocol 006 — Final Signature Page"
   ];
 
   useEffect(() => {
