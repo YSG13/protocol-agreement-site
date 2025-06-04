@@ -1,3 +1,57 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+body {
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(to bottom right, #f8fafc, #e2e8f0);
+  margin: 0;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+form, .report-card {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  margin: 0 auto;
+  max-width: 600px;
+  margin-bottom: 1.5rem;
+}
+
+input, select, textarea, button {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 16px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+button {
+  background-color: #111;
+  color: white;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background-color: #333;
+}
+
+.report-card p {
+  margin: 0.25rem 0;
+}
+
+.signature-img {
+  width: 150px;
+  border: 1px solid #ccc;
+  margin-top: 0.5rem;
+}

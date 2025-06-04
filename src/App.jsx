@@ -1,14 +1,15 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { jsPDF } from "jspdf";
 
 const validUsers = {
-  Abdulaziz: "86946973",
-  Yousif: "123456789",
+  Abdulaziz: "azuz123",
+  Yousif: "ysg4321",
 };
+
 const userPins = {
-  Abdulaziz: "6969",
-  Yousif: "9696",
+  Abdulaziz: "1111",
+  Yousif: "2222",
 };
 
 const punishments = {
@@ -30,6 +31,15 @@ export default function App() {
   const [sigError, setSigError] = useState("");
   const sigCanvasRef = useRef();
 
+  useEffect(() => {
+    const saved = localStorage.getItem("protocolReports");
+    if (saved) setAgreements(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("protocolReports", JSON.stringify(agreements));
+  }, [agreements]);
+
   const handleSubmit = () => {
     if (!name || !protocol || !pin || pin !== userPins[name]) {
       alert("Missing or incorrect PIN");
@@ -48,6 +58,7 @@ export default function App() {
       signatureURL,
       date: new Date().toLocaleString(),
     };
+
     setAgreements([newEntry, ...agreements]);
     setName("");
     setProtocol("");
@@ -78,53 +89,52 @@ export default function App() {
       else alert("Invalid credentials");
     };
     return (
-      <div style={{ padding: 20 }}>
-        <h2>🔐 Protocol Login</h2>
-        <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} /><br/>
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} /><br/>
-        <button onClick={handleLogin}>Login</button>
-      </div>
+      <form>
+        <h1>🔐 Protocol Login</h1>
+        <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <button type="button" onClick={handleLogin}>Login</button>
+      </form>
     );
   };
 
   if (!loggedInUser) return <LoginPage onLogin={setLoggedInUser} />;
 
   return (
-    <div style={{ padding: 20 }}>
+    <div>
       <h1>🛡️ Protocol Agreement Tracker</h1>
 
-      <select value={name} onChange={(e) => setName(e.target.value)}>
-        <option value="">Select Violator</option>
-        <option value="Abdulaziz">Abdulaziz</option>
-        <option value="Yousif">Yousif</option>
-      </select><br/>
+      <form>
+        <select value={name} onChange={(e) => setName(e.target.value)}>
+          <option value="">Select Violator</option>
+          <option value="Abdulaziz">Abdulaziz</option>
+          <option value="Yousif">Yousif</option>
+        </select>
 
-      <select value={protocol} onChange={(e) => setProtocol(e.target.value)}>
-        <option value="">Select Protocol</option>
-        {Object.keys(punishments).map((p) => (
-          <option key={p} value={p}>{p}</option>
-        ))}
-      </select><br/>
+        <select value={protocol} onChange={(e) => setProtocol(e.target.value)}>
+          <option value="">Select Protocol</option>
+          {Object.keys(punishments).map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
 
-      <textarea placeholder="What happened?" value={details} onChange={(e) => setDetails(e.target.value)} /><br/>
-      <input type="password" placeholder="PIN" value={pin} onChange={(e) => setPin(e.target.value)} /><br/>
+        <textarea placeholder="What happened?" value={details} onChange={(e) => setDetails(e.target.value)} />
+        <input type="password" placeholder="PIN" value={pin} onChange={(e) => setPin(e.target.value)} />
 
-      <p>✍️ Signature:</p>
-      <SignatureCanvas ref={sigCanvasRef} penColor="black" canvasProps={{ width: 300, height: 100, className: "sigCanvas" }} />
-      {sigError && <p style={{ color: 'red' }}>{sigError}</p>}
+        <label>✍️ Signature:</label>
+        <SignatureCanvas ref={sigCanvasRef} penColor="black" canvasProps={{ width: 300, height: 100, className: "sigCanvas" }} />
+        {sigError && <p style={{ color: "red" }}>{sigError}</p>}
 
-      <button onClick={handleSubmit}>Submit Report</button>
-
-      <hr />
+        <button type="button" onClick={handleSubmit}>Submit Report</button>
+      </form>
 
       {agreements.map((entry, idx) => (
-        <div key={idx} style={{ border: '1px solid gray', padding: 10, marginTop: 10 }}>
-          <p><strong>🚨 {entry.name}</strong> broke: <em>{entry.violation}</em></p>
-          <p>{entry.date}</p>
-          {entry.details && <p><i>“{entry.details}”</i></p>}
-          <p>Punishment: {punishments[entry.violation]}</p>
-          <img src={entry.signatureURL} alt="signature" width="200" />
-          <br/>
+        <div className="report-card" key={idx}>
+          <p><strong>🚨 {entry.name} broke:</strong> {entry.violation}</p>
+          <p><em>{entry.date}</em></p>
+          {entry.details && <p>“{entry.details}”</p>}
+          <p><strong>Punishment:</strong> {punishments[entry.violation]}</p>
+          <img className="signature-img" src={entry.signatureURL} alt="Signature" />
           <button onClick={() => generatePDF(entry)}>📄 Download PDF</button>
         </div>
       ))}
